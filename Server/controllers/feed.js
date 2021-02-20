@@ -3,7 +3,6 @@ const path = require('path');
 const { validationResult } = require('express-validator');
 const Post = require('../models/post');
 const User = require('../models/user');
-const { findById } = require('../models/user');
 
 const VALIDATION_ERROR_MESSAGE = 'Validation failed, entered data is incorrent.';
 const FIND_POST_FAILED_MESSAGE = 'Cound not find post.';
@@ -66,7 +65,7 @@ exports.createPost = async (req, res, next) => {
 
 exports.getPost = async (req, res, next) => {
     try {
-        const post = await Post.findById(req.params.postId);
+        const post = await Post.findById(req.params.postId).populate('creator');
         if (!post) {
             return throwError(404, FIND_POST_FAILED_MESSAGE, next);
         }
