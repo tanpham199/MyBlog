@@ -1,8 +1,10 @@
 const fs = require('fs');
 const path = require('path');
 const { validationResult } = require('express-validator');
+
 const Post = require('../models/post');
 const User = require('../models/user');
+const io = require('../socket');
 
 const VALIDATION_ERROR_MESSAGE = 'Validation failed, entered data is incorrent.';
 const FIND_POST_FAILED_MESSAGE = 'Cound not find post.';
@@ -27,7 +29,9 @@ exports.getPosts = async (req, res, next) => {
         const totalItems = await Post.find().countDocuments();
         const posts = await Post.find()
             .skip((currentPage - 1) * perPage)
-            .limit(perPage);
+            .limit(perPage)
+            .sort({ createdAt: -1 })
+            .populate('creator');
         res.status(200).json({ message: 'Posts fetched successfully.', posts, totalItems });
     } catch (err) {
         return catchDatabaseError(err, next);
@@ -50,9 +54,12 @@ exports.createPost = async (req, res, next) => {
     try {
         await post.save();
         const user = await User.findById(req.userId);
-        console.log(user);
         user.posts.push(post);
         await user.save();
+        io.getIo().emit('posts', {
+            action: 'create',
+            post: { ...post._doc, creator: { _id: req.userId, name: user.name } },
+        });
         res.status(201).json({
             message: 'Post created successfully.',
             post,
@@ -88,11 +95,11 @@ exports.updatePost = async (req, res, next) => {
         return throwError(422, VALIDATION_ERROR_MESSAGE, next);
     }
     try {
-        const post = await Post.findById(req.params.postId);
+        const post = await Post.findById(req.params.postId).populate('creator');
         if (!post) {
             return throwError(404, FIND_POST_FAILED_MESSAGE, next);
         }
-        if (post.creator.toString() !== req.userId) {
+        if (post.creator._id.toString() !== req.userId) {
             return throwError(403, 'Not authorized.', next);
         }
         const oldImage = post.imageUrl;
@@ -103,6 +110,7 @@ exports.updatePost = async (req, res, next) => {
         post.imageUrl = newImage ? newImage.path.replace('\\', '/') : oldImage;
         post.content = content;
         await post.save();
+        io.getIo().emit('posts', { action: 'update', post });
         res.status(200).json({ message: 'Post updated.', post });
     } catch (err) {
         return catchDatabaseError(err, next);
@@ -123,6 +131,7 @@ exports.deletePost = async (req, res, next) => {
         const user = await User.findById(req.userId);
         user.posts.pull(post._id); // pull method given by mongoose
         await user.save();
+        io.getIo().emit('posts', { action: 'delete', post });
         res.status(200).json({ message: 'Post deleted.', post });
     } catch (err) {
         return catchDatabaseError(err, next);
