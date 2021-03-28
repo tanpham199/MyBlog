@@ -7,7 +7,6 @@ const mongoose = require('mongoose');
 
 const feedRoutes = require('./routes/feed');
 const authRoutes = require('./routes/auth');
-const { Socket } = require('dgram');
 
 const app = express();
 
@@ -50,11 +49,14 @@ app.use((error, req, res, next) => {
 });
 
 mongoose
-    .connect('mongodb+srv://tan:a@cluster0.b8khd.mongodb.net/message?retryWrites=true&w=majority', {
-        useNewUrlParser: true,
-        useUnifiedTopology: true,
-        useFindAndModify: false,
-    })
+    .connect(
+        'mongodb+srv://tan:a@cluster0.b8khd.mongodb.net/message?authSource=admin&replicaSet=atlas-g23omv-shard-0&w=majority&readPreference=primary&appname=MongoDB%20Compass&retryWrites=true&ssl=true',
+        {
+            useNewUrlParser: true,
+            useUnifiedTopology: true,
+            useFindAndModify: false,
+        }
+    )
     .then(() => {
         const server = app.listen(8080);
         const io = require('./socket').init(server);
