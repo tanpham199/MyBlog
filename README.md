@@ -1,6 +1,6 @@
 # BLOG APP
 
-CSR with React, NodeJS Restful API and real-time handling via socket.io
+React, NodeJS Restful API and real-time handling via socket.io
 
 ## How to run this app
 
